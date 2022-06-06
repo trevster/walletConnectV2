@@ -45,25 +45,30 @@ class _MyHomePageState extends State<MyHomePage> {
     _textEditingController = TextEditingController();
   }
 
-  void onListenEvents(){
-    platformChannel.setMethodCallHandler((call) async{
-      if(call.method == 'sessionProposal'){
-        if(call.arguments == null) {
+  void onListenEvents() {
+    platformChannel.setMethodCallHandler((call) async {
+      if (call.method == 'sessionProposal') {
+        if (call.arguments == null) {
           showSnackBar(text: 'No data received');
           return;
         }
         sessionProposal(call.arguments);
       }
-      if(call.method == 'sessionRequest'){}
-      if(call.method == 'deletedSession'){}
-      if(call.method == 'sessionNotification'){}
+      if (call.method == 'sessionRequest') print("flutter do: sessionRequest");
+      if (call.method == 'deletedSession') print("flutter do: deletedSession");
+      if (call.method == 'settleSessionResponse')
+        print("flutter do: settleSessionResponse");
+      if (call.method == 'sessionUpdateResponse')
+        print("flutter do: sessionUpdateResponse");
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title),),
+      appBar: AppBar(
+        title: Text(widget.title),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -76,7 +81,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     barcodeRawString = await Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const CameraQrView()),
                     );
-                    if(barcodeRawString == null) showSnackBar();
+                    if (barcodeRawString == null) showSnackBar();
                     pairWithDapp(barcodeRawString!.substring(3));
                   },
                 ),
@@ -87,8 +92,9 @@ class _MyHomePageState extends State<MyHomePage> {
                     suffix: TextButton(
                       child: const Text('Connect'),
                       onPressed: () {
-                        if(_textEditingController.text.isEmpty) return;
-                        if(_textEditingController.text.startsWith('wc',0) == false) {
+                        if (_textEditingController.text.isEmpty) return;
+                        if (_textEditingController.text.startsWith('wc', 0) ==
+                            false) {
                           showSnackBar(text: 'Code not recognized');
                           return;
                         }
@@ -105,36 +111,41 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  void showSnackBar({String? text}){
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text ?? 'Barcode scan failed')));
+  void showSnackBar({String? text}) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(text ?? 'Barcode scan failed')));
   }
 
-  void showAlertDialog({
+  Widget alertDialogCustom({
     String? title,
     Widget? content,
     void Function()? approve,
     void Function()? reject,
-  }){
-    showDialog(context: context, builder: (BuildContext context){
-      return AlertDialog(
-        title: Text(title ?? 'Request'),
-        content: content ?? Container(),
-        actions: [
-          TextButton(
-            onPressed: approve ?? (){},
-            child: const Text('Approve', style: TextStyle(color: Colors.blue),),
+  }) {
+    return AlertDialog(
+      title: Text(title ?? 'Request'),
+      content: content ?? Container(),
+      actions: [
+        TextButton(
+          onPressed: approve ?? () {},
+          child: const Text(
+            'Approve',
+            style: TextStyle(color: Colors.blue),
           ),
-          TextButton(
-            onPressed: reject ?? (){},
-            child: const Text('Reject', style: TextStyle(color: Colors.red),),
+        ),
+        TextButton(
+          onPressed: reject ?? () {},
+          child: const Text(
+            'Reject',
+            style: TextStyle(color: Colors.red),
           ),
-        ],
-      );
-    });
+        ),
+      ],
+    );
   }
 
   void pairWithDapp(String value) async {
-     dynamic result;
+    dynamic result;
     try {
       result = await platformChannel.invokeMethod("pairWallet", value);
     } catch (e) {
@@ -144,46 +155,71 @@ class _MyHomePageState extends State<MyHomePage> {
       showSnackBar(text: 'Pair with Dapp failed');
       return;
     }
-    if(result == null) showSnackBar(text: 'Pair with Dapp failed');
+    if (result == null) showSnackBar(text: 'Pair with Dapp failed');
     final resultModel = SettledPairing.fromJson(result);
     showSnackBar(text: 'Success pair ${resultModel.topic}');
   }
 
-  void sessionProposal(dynamic json){
-    final SessionProposal sessionProposal = SessionProposal.fromJson(json);
+  void sessionProposal(dynamic value) {
+    // final SessionProposal sessionProposal = SessionProposal.fromJson(json);
 
     final List<Widget> checkBoxListTile = [];
+    final List<String> accounts = ['eip155:42:0xab16a96d359ec27z11e2c2b3d8f8b8942d5bfcdb', 'eip155:42:0xab16a96d359ec28e11e2c2b3d8f8b8942d5bfcdb'];
     final Map<String, bool> accountsBool = {};
 
-    for(int i = 0; i < sessionProposal.accounts!.length; i++){
-      accountsBool.addEntries({sessionProposal.accounts![i]: false}.entries);
+    for (int i = 0; i < 2; i++) {
+      accountsBool.addEntries({accounts[i]: false}.entries);
       checkBoxListTile.add(
-        CheckboxListTile(
-            value: accountsBool[sessionProposal.accounts![i]],
-            onChanged: (bool? value){
-              setState(() {
-                accountsBool[sessionProposal.accounts![i]] = value!;
-              });
-            }
+        StatefulBuilder(
+          builder: (context, setState) {
+            return CheckboxListTile(
+                title: Text(accounts[i]),
+                value: accountsBool[accounts[i]],
+                onChanged: (bool? value) {
+                  setState(() {
+                    accountsBool[accounts[i]] = value!;
+                    if (kDebugMode) {
+                      print("tapped ${accounts[i]} : $value");
+                    }
+                  });
+                });
+          }
         ),
       );
     }
 
-    showAlertDialog(
-      title: 'Session Proposal',
-      content: Column(
-        children: [
-          const Text('Choose Accounts'),
-          ...checkBoxListTile
-        ],
-      ),
-      approve: (){
-        accountsBool.removeWhere((String key, bool value) => value == false);
-        approveAccounts(accountsBool.keys.toList());
+    showDialog(
+      context: context,
+      builder: (BuildContext context){
+        return alertDialogCustom(
+          title: 'Session Proposal',
+          content: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Column(
+                children: [
+                  const Text('Methods'),
+                  Text(value.toString()),
+                ],
+              ),
+              const Text('Choose Accounts'),
+              ...checkBoxListTile
+            ],
+          ),
+          approve: () {
+            accountsBool.removeWhere((String key, bool value) => value == false);
+            approveAccounts(accountsBool.keys.toList());
+            Navigator.of(context).pop();
+          },
+          reject: (){
+            reject();
+            Navigator.of(context).pop();
+          },
+        );
       },
-      reject: reject,
     );
   }
+
   void approveAccounts(List<String> value) async {
     dynamic result;
     try {
@@ -195,7 +231,7 @@ class _MyHomePageState extends State<MyHomePage> {
       showSnackBar(text: 'approveSession Dapp failed');
       return;
     }
-    if(result == null) showSnackBar(text: 'approveSession failed');
+    if (result == null) showSnackBar(text: 'approveSession failed');
     final resultModel = SettledSession.fromJson(result);
     showSnackBar(text: 'Success approve ${resultModel.topic}');
   }
@@ -211,11 +247,8 @@ class _MyHomePageState extends State<MyHomePage> {
       showSnackBar(text: 'Reject Session Dapp failed');
       return;
     }
-    if(result == null) showSnackBar(text: 'approveSession failed');
+    if (result == null) showSnackBar(text: 'approveSession failed');
     final resultModel = RejectedSession.fromJson(result);
     showSnackBar(text: 'Success reject ${resultModel.topic}');
   }
-
-
-
 }

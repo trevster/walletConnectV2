@@ -34,30 +34,21 @@ class SessionProposal {
   final String? description;
   final String? url;
   final List<String>? icons;
-  final List<String>? chains;
-  final List<String>? methods;
-  final List<String>? types;
-  final String? topic;
+  final Map<String, Proposal>? requiredNamespaces;
   final String? proposerPublicKey;
-  final bool? isController;
-  final double? ttl;
-  final List<String>? accounts;
+  final String? relayData;
   final String? relayProtocol;
 
-  SessionProposal(
-      {this.name,
-      this.description,
-      this.url,
-      this.icons,
-      this.chains,
-      this.methods,
-      this.types,
-      this.topic,
-      this.proposerPublicKey,
-      this.isController,
-      this.ttl,
-      this.accounts,
-      this.relayProtocol});
+  SessionProposal({
+    this.name,
+    this.description,
+    this.url,
+    this.icons,
+    this.requiredNamespaces,
+    this.proposerPublicKey,
+    this.relayData,
+    this.relayProtocol,
+  });
 
   static SessionProposal fromJson(dynamic json) {
     return SessionProposal(
@@ -65,15 +56,26 @@ class SessionProposal {
       description: json['description'] as String,
       url: json['url'] as String,
       icons: List<String>.from(json['icons']),
-      chains: List<String>.from(json['chains']),
-      methods: List<String>.from(json['methods']),
-      types: List<String>.from(json['types']),
-      topic: json['topic'] as String,
+      requiredNamespaces: {json['requiredNamespaces'], Proposal.fromJson(json['requiredNamespaces']['proposal'])} as Map<String, Proposal>,
       proposerPublicKey: json['proposerPublicKey'] as String,
-      isController: json['isController'] as bool,
-      ttl: json['ttl'] as double,
-      accounts: List<String>.from(json['accounts']),
+      relayData: json['relayData'] as String,
       relayProtocol: json['relayProtocol'] as String,
+    );
+  }
+}
+
+class Proposal {
+  final List<String>? chains;
+  final List<String>? methods;
+  final List<String>? events;
+
+  Proposal({this.chains, this.methods, this.events});
+
+  static Proposal fromJson(dynamic json) {
+    return Proposal(
+      chains: json['chains'],
+      methods: json['methods'],
+      events: json['events'],
     );
   }
 }
@@ -121,7 +123,7 @@ class RejectedSession {
     this.reason,
   });
 
-  static RejectedSession fromJson(dynamic json){
+  static RejectedSession fromJson(dynamic json) {
     return RejectedSession(
       topic: json['topic'] as String,
       reason: json['reason'] as String,

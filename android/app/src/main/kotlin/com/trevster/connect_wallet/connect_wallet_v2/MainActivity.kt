@@ -1,25 +1,32 @@
 package com.trevster.connect_wallet.connect_wallet_v2
 
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
-import android.os.Bundle
 import android.util.Log
 import androidx.annotation.NonNull
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
-import com.walletconnect.walletconnectv2.client.WalletConnect
-import com.walletconnect.walletconnectv2.client.WalletConnectClient
-import com.walletconnect.walletconnectv2.client.WalletConnectClient.pair
-import io.flutter.plugin.common.EventChannel
+import com.walletconnect.walletconnectv2.client.Sign
+import com.walletconnect.walletconnectv2.client.SignClient
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import java.net.URI
 
-class MainActivity: FlutterActivity() {
+
+class MainActivity : FlutterActivity() {
     private val CHANNEL = "WalletConnectMethodChannel"
     private lateinit var channel: MethodChannel
 
-    private lateinit var proposal: WalletConnect.Model.SessionProposal
+    private lateinit var proposal: Sign.Model.SessionProposal /*= Sign.Model.SessionProposal(
+        name = "A",
+        description = "B",
+        url = "C",
+        icons = listOf(URI.create("https://cdn-icons.flaticon.com/png/512/855/premium/855381.png?token=exp=1654498348~hmac=d09df53c90cdaf267b663a011abc7645")),
+        requiredNamespaces = mapOf("eip155" to Sign.Model.Namespace.Proposal(listOf("A"),listOf("A"),listOf("A"), null)),
+        proposerPublicKey = "A",
+        relayProtocol = "C",
+        relayData = null,
+    )*/
 
 //    private val EVENT_CHANNEL = "com.trevster.connectWallet/responses"
 //    private lateinit var eventChannel: EventChannel
@@ -35,20 +42,23 @@ class MainActivity: FlutterActivity() {
         channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
         channel.setMethodCallHandler(methodCallsFromFlutter())
 
-        val initConnect = WalletConnect.Params.Init(
+        val initConnect = Sign.Params.Init(
             this.application,
             "wss://$WALLET_CONNECT_URL?projectId=b3492619c0f2f0429cf8f67532896405",
-            true,
-            WalletConnect.Model.AppMetaData(
+            Sign.Model.AppMetaData(
                 "Flutter Wallet",
                 "Test Wallet",
                 "com.trevster.connect_wallet",
                 listOf("https://cdn-icons.flaticon.com/png/512/855/premium/855381.png?token=exp=1654498348~hmac=d09df53c90cdaf267b663a011abc7645")
-            )
+            ),
+            null,
+            Sign.ConnectionType.AUTOMATIC
         )
 
-        WalletConnectClient.initialize(initConnect)
-        WalletConnectClient.setWalletDelegate(delegateWallet())
+        SignClient.initialize(initConnect) { error ->
+            Log.i("Dev", "Sign Client Initialize Error ${error.throwable.message}")
+        }
+        SignClient.setWalletDelegate(walletDelegate)
 
 
 //        eventChannel = EventChannel(flutterEngine.dartExecutor.binaryMessenger, EVENT_CHANNEL)
@@ -56,92 +66,104 @@ class MainActivity: FlutterActivity() {
     }
 
 
-    private fun methodCallsFromFlutter() : MethodChannel.MethodCallHandler{
-        return MethodChannel.MethodCallHandler{ call, result ->
+    private fun methodCallsFromFlutter(): MethodChannel.MethodCallHandler {
+        return MethodChannel.MethodCallHandler { call, result ->
             if (call.method == "pairWallet") {
-                Log.i("Dev","mcff ---- pairWallet ----")
+                Log.i("Dev", "mcff ---- pairWallet ----")
                 println("mcff pairWallet call.arguments ${call.arguments}")
                 val uri = "wc:${(call.arguments as String)}"
                 println("mcff pairWallet arguments $uri")
-                if (uri.isEmpty()){
-                    result.error("500","argument is null", null)
+                if (uri.isEmpty()) {
+                    result.error("500", "argument is null", null)
                 }
-                val pairParams = WalletConnect.Params.Pair(uri)
+                val pairParams = Sign.Params.Pair(uri)
 
                 println("mcff pairWallet pairParams $pairParams")
-                pair(pairParams, object : WalletConnect.Listeners.Pairing {
-                    override fun onSuccess(settledPairing: WalletConnect.Model.SettledPairing) {
-                        Log.i("Dev","mcff Settled Pairing result: $settledPairing")
-                        println("Settled Pairing result: $settledPairing")
-                        result.success(settledPairing)
-                    }
-
-                    override fun onError(error: Throwable) {
-                        Log.i("Dev","mcff On Error result: ${error.message} ${error.cause}")
-                        println("On Error result: ${error.message} ${error.cause}")
-                        result.error("408", "${error.message}", null)
-                    }
-                })
+                SignClient.pair(pairParams) { error: Sign.Model.Error ->
+                    result.error("Dev", "${error.throwable.message}", null)
+                }
             }
-            if (call.method == "approveSession"){
-                val accounts = proposal.chains.map { chainId -> "$chainId:0x022c0c42a80bd19EA4cF0F94c4F9F96645759716" }
-                val approve = WalletConnect.Params.Approve(proposal, accounts)
+            if (call.method == "approveSession") {
 
-                WalletConnectClient.approve(approve, object : WalletConnect.Listeners.SessionApprove {
-                    override fun onSuccess(settledSession: WalletConnect.Model.SettledSession) {
-                        println("Settled Pairing result: $settledSession")
-                        result.success(settledSession)
-                    }
+                val namespace = proposal.requiredNamespaces.keys.first()
+                val accounts: List<String> = call.arguments() as List<String>
+                val methods: List<String> = proposal.requiredNamespaces[proposal.requiredNamespaces.keys.first()]!!.methods
+                val events: List<String> = proposal.requiredNamespaces[proposal.requiredNamespaces.keys.first()]!!.events
+                val namespaces: Map<String, Sign.Model.Namespace.Session> = mapOf(
+                    namespace to Sign.Model.Namespace.Session(
+                        accounts,
+                        methods,
+                        events,
+                        null
+                    )
+                )
 
-                    override fun onError(error: Throwable) {
-                        println("On Error result: ${error.message} ${error.cause}")
-                        result.error("408", "${error.message}", null)
-                    }
-                })
+
+                val approve = Sign.Params.Approve(proposal.proposerPublicKey, namespaces)
+                SignClient.approveSession(approve) { error: Sign.Model.Error ->
+                    result.error(
+                        "Dev",
+                        "Sign Client Approve Session Failed ${error.throwable.message}",
+                        null
+                    )
+                }
             }
 
-            if (call.method == "rejectSession"){
+            if (call.method == "rejectSession") {
                 val rejectionReason = "Reject Session"
-                val proposalTopic: String = proposal.topic
-                val reject = WalletConnect.Params.Reject(rejectionReason, proposalTopic)
+                val proposalTopic: String = proposal.name
+                val reject = Sign.Params.Reject(rejectionReason, proposalTopic, 500)
 
-                WalletConnectClient.reject(reject, object : WalletConnect.Listeners.SessionReject {
-                    override fun onSuccess(rejectedSession: WalletConnect.Model.RejectedSession) {
-                        // onSuccess reject session
-                        result.success(rejectedSession)
-                    }
-
-                    override fun onError(error: Throwable) {
-                        //Reject proposal error
-                        result.error("500", error.message, null)
-                    }
-                })
+                SignClient.rejectSession(reject) { error: Sign.Model.Error ->
+                    result.error(
+                        "408",
+                        "Sign Client Reject Session Failed ${error.throwable.message}",
+                        null
+                    )
+                }
             }
         }
     }
 
-    private fun delegateWallet(): WalletConnectClient.WalletDelegate {
-        return object : WalletConnectClient.WalletDelegate {
-            override fun onSessionProposal(sessionProposal: WalletConnect.Model.SessionProposal) {
-                // Triggered when wallet receives the session proposal sent by a Dapp
-                proposal = sessionProposal
-                channel.invokeMethod("sessionProposal", sessionProposal)
-            }
-
-            override fun onSessionRequest(sessionRequest: WalletConnect.Model.SessionRequest) {
-                // Triggered when a Dapp sends SessionRequest to sign a transaction or a message
-                channel.invokeMethod("sessionRequest", sessionRequest)
-            }
-
-            override fun onSessionDelete(deletedSession: WalletConnect.Model.DeletedSession) {
-                // Triggered when the session is deleted by the peer
-                channel.invokeMethod("deletedSession", deletedSession)
-            }
-
-            override fun onSessionNotification(sessionNotification: WalletConnect.Model.SessionNotification) {
-                channel.invokeMethod("sessionNotification", sessionNotification)
-            }
+    private val walletDelegate = object : SignClient.WalletDelegate {
+        override fun onSessionProposal(sessionProposal: Sign.Model.SessionProposal) {
+            // Triggered when wallet receives the session proposal sent by a Dapp
+            Log.i("Dev", "---- onSessionProposal ----")
+            println("walDel sessionProposal $sessionProposal")
+            proposal = sessionProposal
+            println("walDel sessionProposal gonna invoke method: proposal $proposal")
+            runOnUiThread {
+                channel.invokeMethod(
+                    "sessionProposal",
+                    sessionProposal.requiredNamespaces[sessionProposal.requiredNamespaces.keys.first()]?.methods
+            ) }
+            println("walDel sessionProposal method invoked $sessionProposal")
         }
+
+        override fun onSessionRequest(sessionRequest: Sign.Model.SessionRequest) {
+            // Triggered when a Dapp sends SessionRequest to sign a transaction or a message
+            channel.invokeMethod("sessionRequest", sessionRequest)
+        }
+
+        override fun onSessionDelete(deletedSession: Sign.Model.DeletedSession) {
+            // Triggered when the session is deleted by the peer
+            channel.invokeMethod("deletedSession", deletedSession)
+        }
+
+        override fun onSessionSettleResponse(settleSessionResponse: Sign.Model.SettledSessionResponse) {
+            // Triggered when wallet receives the session settlement response from Dapp
+            channel.invokeMethod("settleSessionResponse", settleSessionResponse)
+        }
+
+        override fun onSessionUpdateResponse(sessionUpdateResponse: Sign.Model.SessionUpdateResponse) {
+            // Triggered when wallet receives the session update response from Dapp
+            channel.invokeMethod("sessionUpdateResponse", sessionUpdateResponse)
+        }
+
+        override fun onConnectionStateChange(state: Sign.Model.ConnectionState) {
+            println("connectionStateChanged")
+        }
+
     }
 
 }
