@@ -146,9 +146,9 @@ class MainActivity : FlutterActivity() {
             }
 
             if (call.method == "rejectSession") {
-                val rejectionReason = "Reject Session"
-                val proposalTopic: String = proposal.name
-                val reject = Sign.Params.Reject(rejectionReason, proposalTopic, 500)
+                val rejectionReason = "Reject Session by Wallet"
+                val proposalPublicKey: String = proposal.proposerPublicKey
+                val reject = Sign.Params.Reject(proposalPublicKey, rejectionReason, 5000)
 
                 SignClient.rejectSession(reject) { error: Sign.Model.Error ->
                     result.error(

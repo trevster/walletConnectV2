@@ -133,7 +133,9 @@ class _MyHomePageState extends State<MyHomePage> {
                   SizedBox(
                     child: Column(
                       children: [
-                        const Text('Current Paired Accounts'),
+                        const SizedBox(height: 50,),
+                        const Text('Current Paired Accounts', style: TextStyle(fontWeight: FontWeight.bold),),
+                        const SizedBox(height: 10,),
                         ListTile(
                           title: const Text('Accounts'),
                           subtitle: Text(accounts.toString()),
@@ -240,31 +242,49 @@ class _MyHomePageState extends State<MyHomePage> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return alertDialogCustom(
-          title: 'Session Proposal',
-          content: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Column(
+        String? errorMessage;
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return alertDialogCustom(
+              title: 'Session Proposal',
+              content: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Methods'),
-                  Text(value.toString()),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Methods', style: TextStyle(fontWeight: FontWeight.bold),),
+                      const SizedBox(height: 5,),
+                      Text(value.toString()),
+                    ],
+                  ),
+                  const SizedBox(height: 15,),
+                  const Text('Choose Accounts', style: TextStyle(fontWeight: FontWeight.bold),),
+                  const SizedBox(height: 5,),
+                  ...checkBoxListTile,
+                  if(errorMessage != null)
+                    const Text('Choose Accounts', style: TextStyle(fontWeight: FontWeight.bold),),
                 ],
               ),
-              const Text('Choose Accounts'),
-              ...checkBoxListTile
-            ],
-          ),
-          approve: () {
-            accountsBool
-                .removeWhere((String key, bool value) => value == false);
-            approveAccounts(accountsBool.keys.toList());
-            Navigator.of(context).pop();
-          },
-          reject: () {
-            reject();
-            Navigator.of(context).pop();
-          },
+              approve: () {
+                accountsBool
+                    .removeWhere((String key, bool value) => value == false);
+                if(accountsBool.keys.toList().isEmpty){
+                  setState(() {
+                    errorMessage = 'Please choose an account';
+                  });
+                  Future.delayed(const Duration(seconds: 2)).then((value) => setState((){errorMessage = null;}));
+                  return;
+                }
+                approveAccounts(accountsBool.keys.toList());
+                Navigator.of(context).pop();
+              },
+              reject: () {
+                reject();
+                Navigator.of(context).pop();
+              },
+            );
+          }
         );
       },
     );
@@ -283,9 +303,8 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void reject() async {
-    dynamic result;
     try {
-      result = await platformChannel.invokeMethod("rejectSession");
+      await platformChannel.invokeMethod("rejectSession");
     } catch (e) {
       if (kDebugMode) {
         print('Catch invokeMethod rejectSession, message: $e');
@@ -293,9 +312,7 @@ class _MyHomePageState extends State<MyHomePage> {
       showSnackBar(text: 'Reject Session Dapp failed');
       return;
     }
-    if (result == null) showSnackBar(text: 'rejectSession failed');
-    final resultModel = RejectedSession.fromJson(result);
-    showSnackBar(text: 'Success reject ${resultModel.topic}');
+    showSnackBar(text: 'Success reject', color: Colors.green);
   }
 
   void disconnect() async {
