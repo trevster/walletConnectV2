@@ -1,16 +1,19 @@
 # connect_wallet_v2
 
-A new Flutter project.
+A Flutter Wallet Project that can connect to 
+react-app.walletconnect.com
 
-## Getting Started
+The Project will be continually updated
 
-This project is a starting point for a Flutter application.
+Using v2.0.0-beta.100
+Reference: app/build.gradle
+implementation 'com.github.WalletConnect:WalletConnectKotlinV2:1.0.0-beta100'
 
-A few resources to get you started if this is your first Flutter project:
+Video demo of how the app works:
+https://drive.google.com/drive/folders/1fF5XOyU0vOQipTckwjjCM-62OgEvY2YS?usp=sharing
 
-- [Lab: Write your first Flutter app](https://flutter.dev/docs/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://flutter.dev/docs/cookbook)
+Resolves suggestions for compability issues with flutter 3.0
+Update pubspec.yaml with the dependecies below
+mobile_scanner: ^2.0.0
+web3dart: ^2.4.0
 
-For help getting started with Flutter, view our
-[online documentation](https://flutter.dev/docs), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
