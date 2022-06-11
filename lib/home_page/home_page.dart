@@ -1,8 +1,8 @@
 import 'package:connect_wallet_v2/camera_qr_view.dart';
-import 'package:connect_wallet_v2/models.dart';
+import 'package:connect_wallet_v2/home_page/home_page_cubit.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({Key? key, required this.title}) : super(key: key);
@@ -18,7 +18,6 @@ class _MyHomePageState extends State<MyHomePage> {
     'eip155:42:0xab16a96d359ec27z11e2c2b3d8f8b8942d5bfcdb',
     'eip155:42:0xab16a96d359ec28e11e2c2b3d8f8b8942d5bfcdb'
   ];
-  static const platformChannel = MethodChannel('WalletConnectMethodChannel');
 
   late TextEditingController _textEditingController;
   String? barcodeRawString;
@@ -27,66 +26,14 @@ class _MyHomePageState extends State<MyHomePage> {
   dynamic methods;
   dynamic sessionExpiry;
 
+  late HomePageCubit _homePageCubit;
+
   @override
   void initState() {
     super.initState();
-    onListenEvents();
+    _homePageCubit = HomePageCubit();
+    _homePageCubit.onListenEvents();
     _textEditingController = TextEditingController();
-  }
-
-  void onListenEvents() {
-    platformChannel.setMethodCallHandler((call) async {
-      if (call.method == 'sessionProposal') {
-        if (call.arguments == null) {
-          showSnackBar(text: 'No data received');
-          return;
-        }
-        if (kDebugMode) {
-          print("flutter do: sessionProposal");
-        }
-        methods = call.arguments;
-        sessionProposal(call.arguments);
-      }
-      if (call.method == 'sessionRequest') {
-        if (kDebugMode) {
-          print("flutter do: sessionRequest");
-        }
-      }
-      if (call.method == 'deletedSession') {
-        if (kDebugMode) {
-          print("flutter do: deletedSession");
-        }
-        setState(() {
-          methods = null;
-          sessionExpiry = null;
-        });
-      }
-      if (call.method == 'settleSessionResponse') {
-        if (kDebugMode) {
-          print("flutter do: settleSessionResponse");
-        }
-
-          setState(() {
-            sessionExpiry = call.arguments;
-          });
-
-        try{
-          final sessionExpiryInt = int.parse(sessionExpiry.toString());
-          sessionExpiryString = DateTime.fromMillisecondsSinceEpoch(sessionExpiryInt * 1000).toLocal().toString();
-        } catch (e){
-          if (kDebugMode) {
-            print("fail parse: sessionExpiryString");
-          }
-        }
-
-        showSnackBar(text: 'Approve success', color: Colors.green);
-      }
-      if (call.method == 'sessionUpdateResponse') {
-        if (kDebugMode) {
-          print("flutter do: sessionUpdateResponse");
-        }
-      }
-    });
   }
 
   @override
@@ -108,7 +55,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       MaterialPageRoute(builder: (_) => const CameraQrView()),
                     );
                     if (barcodeRawString == null) showSnackBar();
-                    pairWithDapp(barcodeRawString!.substring(3));
+                    _homePageCubit.invokeMethod(InvokeMethodWallet.pairWallet, value: barcodeRawString!.substring(3));
                   },
                 ),
                 TextFormField(
@@ -124,37 +71,56 @@ class _MyHomePageState extends State<MyHomePage> {
                           showSnackBar(text: 'Code not recognized');
                           return;
                         }
-                        pairWithDapp(_textEditingController.text);
+                        _homePageCubit.invokeMethod(InvokeMethodWallet.pairWallet, value: _textEditingController.text);
                       },
                     ),
                   ),
                 ),
-                if (sessionExpiry != null)
-                  SizedBox(
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 50,),
-                        const Text('Current Paired Accounts', style: TextStyle(fontWeight: FontWeight.bold),),
-                        const SizedBox(height: 10,),
-                        ListTile(
-                          title: const Text('Accounts'),
-                          subtitle: Text(accounts.toString()),
+                BlocConsumer<HomePageCubit, HomePageState>(
+                  listener: (context, state) {
+                    if(state.methodCallWallet == MethodCallWallet.sessionProposal){
+                      sessionProposal(state.methods);
+                    }
+                  },
+                  builder: (context, state) {
+                    if(state.methodCallWallet == MethodCallWallet.settleSessionResponse){
+                      return SizedBox(
+                        child: Column(
+                          children: [
+                            const SizedBox(
+                              height: 50,
+                            ),
+                            const Text(
+                              'Current Paired Accounts',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(
+                              height: 10,
+                            ),
+                            ListTile(
+                              title: const Text('Accounts'),
+                              subtitle: Text(accounts.toString()),
+                            ),
+                            ListTile(
+                              title: const Text('Methods'),
+                              subtitle: Text(methods.toString()),
+                            ),
+                            ListTile(
+                              title: const Text('Expiry'),
+                              subtitle: Text(sessionExpiryString ??
+                                  sessionExpiry.toString()),
+                            ),
+                            TextButton(
+                              onPressed: () => _homePageCubit.invokeMethod(InvokeMethodWallet.disconnectSession),
+                              child: const Text('Disconnect'),
+                            ),
+                          ],
                         ),
-                        ListTile(
-                          title: const Text('Methods'),
-                          subtitle: Text(methods.toString()),
-                        ),
-                        ListTile(
-                          title: const Text('Expiry'),
-                          subtitle: Text(sessionExpiryString ?? sessionExpiry.toString()),
-                        ),
-                        TextButton(
-                          onPressed: disconnect,
-                          child: const Text('Disconnect'),
-                        ),
-                      ],
-                    ),
-                  )
+                      );
+                    }
+                    return Container();
+                  },
+                )
               ],
             ),
           ),
@@ -198,24 +164,8 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  void pairWithDapp(String value) async {
-    dynamic result;
-    try {
-      result = await platformChannel.invokeMethod("pairWallet", value);
-    } catch (e) {
-      if (kDebugMode) {
-        print('Catch invokeMethod pair wallet, message: $e');
-      }
-      showSnackBar(text: 'Pair with Dapp failed');
-      return;
-    }
-    if (result == null) showSnackBar(text: 'Pair with Dapp failed');
-    final resultModel = SettledPairing.fromJson(result);
-    showSnackBar(text: 'Success pair ${resultModel.topic}');
-  }
 
   void sessionProposal(dynamic value) {
-    // final SessionProposal sessionProposal = SessionProposal.fromJson(json);
 
     final List<Widget> checkBoxListTile = [];
     final Map<String, bool> accountsBool = {};
@@ -243,95 +193,66 @@ class _MyHomePageState extends State<MyHomePage> {
       context: context,
       builder: (BuildContext context) {
         String? errorMessage;
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return alertDialogCustom(
-              title: 'Session Proposal',
-              content: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Methods', style: TextStyle(fontWeight: FontWeight.bold),),
-                      const SizedBox(height: 5,),
-                      Text(value.toString()),
-                    ],
+        return StatefulBuilder(builder: (context, setState) {
+          return alertDialogCustom(
+            title: 'Session Proposal',
+            content: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Methods',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(
+                      height: 5,
+                    ),
+                    Text(value.toString()),
+                  ],
+                ),
+                const SizedBox(
+                  height: 15,
+                ),
+                const Text(
+                  'Choose Accounts',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(
+                  height: 5,
+                ),
+                ...checkBoxListTile,
+                if (errorMessage != null)
+                  const Text(
+                    'Choose Accounts',
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 15,),
-                  const Text('Choose Accounts', style: TextStyle(fontWeight: FontWeight.bold),),
-                  const SizedBox(height: 5,),
-                  ...checkBoxListTile,
-                  if(errorMessage != null)
-                    const Text('Choose Accounts', style: TextStyle(fontWeight: FontWeight.bold),),
-                ],
-              ),
-              approve: () {
-                accountsBool
-                    .removeWhere((String key, bool value) => value == false);
-                if(accountsBool.keys.toList().isEmpty){
-                  setState(() {
-                    errorMessage = 'Please choose an account';
-                  });
-                  Future.delayed(const Duration(seconds: 2)).then((value) => setState((){errorMessage = null;}));
-                  return;
-                }
-                approveAccounts(accountsBool.keys.toList());
-                Navigator.of(context).pop();
-              },
-              reject: () {
-                reject();
-                Navigator.of(context).pop();
-              },
-            );
-          }
-        );
+              ],
+            ),
+            approve: () {
+              accountsBool
+                  .removeWhere((String key, bool value) => value == false);
+              if (accountsBool.keys.toList().isEmpty) {
+                setState(() {
+                  errorMessage = 'Please choose an account';
+                });
+                Future.delayed(const Duration(seconds: 2))
+                    .then((value) => setState(() {
+                          errorMessage = null;
+                        }));
+                return;
+              }
+              _homePageCubit.invokeMethod(InvokeMethodWallet.approveSession, value: accountsBool.keys.toList());
+              Navigator.of(context).pop();
+            },
+            reject: () {
+              _homePageCubit.invokeMethod(InvokeMethodWallet.rejectSession);
+              Navigator.of(context).pop();
+            },
+          );
+        });
       },
     );
   }
-
-  void approveAccounts(List<String> value) async {
-    try {
-      platformChannel.invokeMethod("approveSession", value);
-    } catch (e) {
-      if (kDebugMode) {
-        print('Catch invokeMethod approveSession, message: $e');
-      }
-      showSnackBar(text: 'approveSession Dapp failed');
-      return;
-    }
-  }
-
-  void reject() async {
-    try {
-      await platformChannel.invokeMethod("rejectSession");
-    } catch (e) {
-      if (kDebugMode) {
-        print('Catch invokeMethod rejectSession, message: $e');
-      }
-      showSnackBar(text: 'Reject Session Dapp failed');
-      return;
-    }
-    showSnackBar(text: 'Success reject', color: Colors.green);
-  }
-
-  void disconnect() async {
-    setState(() {
-      methods = null;
-      sessionExpiry = null;
-    });
-    try {
-      await platformChannel.invokeMethod("disconnectSession");
-    } catch (e) {
-      if (kDebugMode) {
-        print('Catch invokeMethod rejectSession, message: $e');
-      }
-      showSnackBar(text: 'Disconnect Session Dapp failed');
-      return;
-    }
-
-
-    showSnackBar(text: 'Success Disconnect', color: Colors.green);
-  }
-
 }
