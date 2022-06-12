@@ -94,9 +94,6 @@ class MainActivity : FlutterActivity() {
         }
         SignClient.setWalletDelegate(walletDelegate)
 
-
-//        eventChannel = EventChannel(flutterEngine.dartExecutor.binaryMessenger, EVENT_CHANNEL)
-//        eventChannel.setStreamHandler(WalletStreamHandler(context))
     }
 
 
@@ -177,25 +174,4 @@ class MainActivity : FlutterActivity() {
     }
 }
 
-//class WalletStreamHandler(private val context: Context) : EventChannel.StreamHandler{
-//    private var receiver: BroadcastReceiver? = null
-//    override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-//        if(events == null) return
-//
-//        receiver = initReceiver(events)
-//        context.registerReceiver(receiver, IntentFilter())
-//    }
-//
-//    override fun onCancel(arguments: Any?) {
-//        TODO("Not yet implemented")
-//    }
-//
-//    private fun initReceiver(events: EventChannel.EventSink) : BroadcastReceiver{
-//        return object : BroadcastReceiver(){
-//            override fun onReceive(context: Context?, intent: Intent?) {
-//                TODO("Not yet implemented")
-//            }
-//        }
-//    }
-//}
 

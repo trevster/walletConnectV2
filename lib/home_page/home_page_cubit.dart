@@ -66,7 +66,7 @@ class HomePageCubit extends Cubit<HomePageState> {
           print("flutter do: settleSessionResponse");
         }
 
-        String sessionExpiry = call.arguments;
+        dynamic sessionExpiry = call.arguments;
         try {
           final sessionExpiryInt = int.parse(sessionExpiry.toString());
           sessionExpiry =
@@ -85,7 +85,7 @@ class HomePageCubit extends Cubit<HomePageState> {
 
         emit(state.copyWith(
           message: 'Session connected',
-          methods: MethodCallWallet.settleSessionResponse,
+          methodCallWallet: MethodCallWallet.settleSessionResponse,
           sessionExpiry: sessionExpiry,
         ));
       }
@@ -104,6 +104,7 @@ class HomePageCubit extends Cubit<HomePageState> {
     if (invokeMethodWallet == InvokeMethodWallet.disconnectSession) {
       emit(state.copyWith(
           message: '${invokeMethodWallet.name.toString()} Disconnected',
+          methodCallWallet: MethodCallWallet.deletedSession,
           invokeMethodWallet: InvokeMethodWallet.pairWallet,
           methods: null,
           sessionExpiry: null));

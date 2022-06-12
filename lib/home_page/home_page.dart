@@ -77,6 +77,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                 ),
                 BlocConsumer<HomePageCubit, HomePageState>(
+                  bloc: _homePageCubit,
                   listener: (context, state) {
                     if(state.methodCallWallet == MethodCallWallet.sessionProposal){
                       sessionProposal(state.methods);
@@ -103,12 +104,11 @@ class _MyHomePageState extends State<MyHomePage> {
                             ),
                             ListTile(
                               title: const Text('Methods'),
-                              subtitle: Text(methods.toString()),
+                              subtitle: Text(state.methods.toString()),
                             ),
                             ListTile(
                               title: const Text('Expiry'),
-                              subtitle: Text(sessionExpiryString ??
-                                  sessionExpiry.toString()),
+                              subtitle: Text(state.sessionExpiry.toString()),
                             ),
                             TextButton(
                               onPressed: () => _homePageCubit.invokeMethod(InvokeMethodWallet.disconnectSession),
