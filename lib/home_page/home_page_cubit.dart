@@ -55,11 +55,12 @@ class HomePageCubit extends Cubit<HomePageState> {
         if (kDebugMode) {
           print("flutter do: deletedSession");
         }
-        state.copyWith(
-            message: 'Session Deleted by Dapp',
-            methodCallWallet: MethodCallWallet.deletedSession,
-            sessionExpiry: null,
-            methods: null);
+        emit(state.copyWith(
+          message: 'Session Deleted by Dapp',
+          methodCallWallet: MethodCallWallet.deletedSession,
+          sessionExpiry: null,
+          methods: null,
+        ));
       }
       if (call.method == 'settleSessionResponse') {
         if (kDebugMode) {

@@ -82,6 +82,9 @@ class _MyHomePageState extends State<MyHomePage> {
                     if(state.methodCallWallet == MethodCallWallet.sessionProposal){
                       sessionProposal(state.methods);
                     }
+                    if(state.message != null){
+                      showSnackBar(text: state.message);
+                    }
                   },
                   builder: (context, state) {
                     if(state.methodCallWallet == MethodCallWallet.settleSessionResponse){

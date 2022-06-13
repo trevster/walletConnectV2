@@ -48,6 +48,7 @@ class MainActivity : FlutterActivity() {
             Log.i("Dev", "Sign Client Initialize Error ${error.throwable.message}")
         }
 
+        runOnUiThread {  }
         val walletDelegate = object : SignClient.WalletDelegate {
             override fun onSessionProposal(sessionProposal: Sign.Model.SessionProposal) {
                 // Triggered when wallet receives the session proposal sent by a Dapp
@@ -65,12 +66,16 @@ class MainActivity : FlutterActivity() {
 
             override fun onSessionRequest(sessionRequest: Sign.Model.SessionRequest) {
                 // Triggered when a Dapp sends SessionRequest to sign a transaction or a message
-                channel.invokeMethod("sessionRequest", sessionRequest)
+                runOnUiThread {
+                    channel.invokeMethod("sessionRequest", sessionRequest)
+                }
             }
 
             override fun onSessionDelete(deletedSession: Sign.Model.DeletedSession) {
                 // Triggered when the session is deleted by the peer
-                channel.invokeMethod("deletedSession", null)
+                runOnUiThread {
+                    channel.invokeMethod("deletedSession", null)
+                }
             }
 
             override fun onSessionSettleResponse(settleSessionResponse: Sign.Model.SettledSessionResponse) {
@@ -84,11 +89,17 @@ class MainActivity : FlutterActivity() {
 
             override fun onSessionUpdateResponse(sessionUpdateResponse: Sign.Model.SessionUpdateResponse) {
                 // Triggered when wallet receives the session update response from Dapp
-                channel.invokeMethod("sessionUpdateResponse", sessionUpdateResponse)
+                runOnUiThread {
+                    channel.invokeMethod("sessionUpdateResponse", sessionUpdateResponse)
+                }
+
             }
 
             override fun onConnectionStateChange(state: Sign.Model.ConnectionState) {
                 println("connectionStateChanged")
+                runOnUiThread {
+                    channel.invokeMethod("connectionStateChange", null)
+                }
             }
 
         }
