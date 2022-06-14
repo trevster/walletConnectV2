@@ -128,7 +128,7 @@ class MainActivity : FlutterActivity() {
             if (call.method == "approveSession") {
 
                 val namespace = proposal.requiredNamespaces.keys.first()
-                val accounts: List<String> = call.arguments() as List<String>
+                val accounts: List<String> = call.arguments()!!
                 val methods: List<String> =
                     proposal.requiredNamespaces[proposal.requiredNamespaces.keys.first()]!!.methods
                 val events: List<String> =

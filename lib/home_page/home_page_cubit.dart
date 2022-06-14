@@ -37,17 +37,13 @@ class HomePageCubit extends Cubit<HomePageState> {
         if (kDebugMode) {
           print("flutter do: sessionProposal");
         }
-        emit(state.copyWith(
-            message: 'No data received',
-            methodCallWallet: MethodCallWallet.sessionProposal,
-            methods: call.arguments));
       }
       if (call.method == 'sessionRequest') {
         if (kDebugMode) {
           print("flutter do: sessionRequest");
         }
         emit(state.copyWith(
-            message: 'sessionRequest',
+            message: 'Requested',
             methodCallWallet: MethodCallWallet.sessionRequest,
             methods: call.arguments));
       }
@@ -104,7 +100,7 @@ class HomePageCubit extends Cubit<HomePageState> {
   }) async {
     if (invokeMethodWallet == InvokeMethodWallet.disconnectSession) {
       emit(state.copyWith(
-          message: '${invokeMethodWallet.name.toString()} Disconnected',
+          message: 'Disconnected',
           methodCallWallet: MethodCallWallet.deletedSession,
           invokeMethodWallet: InvokeMethodWallet.pairWallet,
           methods: null,
