@@ -7,10 +7,6 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import com.walletconnect.walletconnectv2.client.Sign
 import com.walletconnect.walletconnectv2.client.SignClient
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
-import java.net.URI
 
 
 class MainActivity : FlutterActivity() {
@@ -167,12 +163,8 @@ class MainActivity : FlutterActivity() {
                 }
             }
             if (call.method == "disconnectSession") {
-                val disconnectionReason: String = "Disconnect by User"
-                val disconnectionCode: Int = 5000
                 val sessionTopic: String = sessionsModel.first().topic
-                val disconnectParams =
-                    Sign.Params.Disconnect(sessionTopic, disconnectionReason, disconnectionCode)
-
+                val disconnectParams = Sign.Params.Disconnect(sessionTopic)
                 SignClient.disconnect(disconnectParams) { error: Sign.Model.Error ->
                     result.error(
                         "408",

@@ -15,8 +15,8 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   final List<String> accounts = [
-    'eip155:42:0xab16a96d359ec27z11e2c2b3d8f8b8942d5bfcdb',
-    'eip155:42:0xab16a96d359ec28e11e2c2b3d8f8b8942d5bfcdb'
+    'eip155:42:0xb6f6a28624a70a9e38294587529ba60144940ed1',
+    'eip155:42:0xd4e10bdad6a474585a7aba291f86dd332ad0a0d4'
   ];
 
   late TextEditingController _textEditingController;
@@ -32,6 +32,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     _homePageCubit = HomePageCubit();
+    _homePageCubit.initWallet();
     _homePageCubit.onListenEvents();
     _textEditingController = TextEditingController();
   }

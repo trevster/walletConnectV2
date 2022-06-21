@@ -1,7 +1,10 @@
+import 'dart:math';
+
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:web3dart/web3dart.dart';
 
 part 'home_page_state.dart';
 
@@ -25,6 +28,16 @@ class HomePageCubit extends Cubit<HomePageState> {
 
   static const platformChannel = MethodChannel('WalletConnectMethodChannel');
 
+  void initWallet() async {
+    final rng = Random.secure();
+    Credentials credentials = EthPrivateKey.createRandom(rng);
+    final address = await credentials.extractAddress();
+    if (kDebugMode) {
+      print('generated credentials: $credentials');
+      print('generated address: $address');
+    }
+  }
+
   void onListenEvents() {
     platformChannel.setMethodCallHandler((call) async {
       if (call.method == 'sessionProposal') {
@@ -37,6 +50,10 @@ class HomePageCubit extends Cubit<HomePageState> {
         if (kDebugMode) {
           print("flutter do: sessionProposal");
         }
+        emit(state.copyWith(
+            message: 'Session Proposal',
+            methodCallWallet: MethodCallWallet.sessionProposal,
+            methods: call.arguments));
       }
       if (call.method == 'sessionRequest') {
         if (kDebugMode) {
