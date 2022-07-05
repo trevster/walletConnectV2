@@ -9,59 +9,79 @@ import 'package:web3dart/web3dart.dart';
 
 part 'home_page_state.dart';
 
-enum MethodCallWallet { sessionProposal, sessionRequest, deletedSession, settleSessionResponse, sessionUpdateResponse }
+enum MethodCallWallet {
+  sessionProposal,
+  sessionRequest,
+  deletedSession,
+  settleSessionResponse,
+  sessionUpdateResponse,
+}
 
 enum InvokeMethodWallet {
   pairWallet,
   approveSession,
   rejectSession,
   disconnectSession,
+  respondRequest,
+  rejectRequest,
 }
 
 class HomePageCubit extends Cubit<HomePageState> {
   HomePageCubit() : super(const HomePageState());
   static const storage = FlutterSecureStorage();
-  static const WALLET_ADDRESS = "WALLET_ADDRESS";
+  static const walletAddress = "WALLET_ADDRESS";
   static const platformChannel = MethodChannel('WalletConnectMethodChannel');
 
+  String toCAPI10(String addressHex) {
+    if(!addressHex.startsWith('eip')) return 'eip155:42:$addressHex';
+    return addressHex;
+  }
+
   void initWallet() async {
+    final String? account = await storage.read(key: walletAddress);
+    if (account != null) {
+      emit(state.copyWith(accounts: [toCAPI10(account)]));
+      return;
+    }
     final rng = Random.secure();
     Credentials credentials = EthPrivateKey.createRandom(rng);
     final address = await credentials.extractAddress();
-    final addressCaip10 = 'eip155:42:${address.hexEip55}';
+    final addressHexEip155 = address.hexEip55;
     if (kDebugMode) {
       print('generated address: $address');
     }
-    final String? account = await storage.read(key: WALLET_ADDRESS);
-    if (account != null) {
-      emit(state.copyWith(accounts: [addressCaip10]));
-      return;
-    }
-
-
-    emit(state.copyWith(accounts: [addressCaip10]));
-    storage.write(key: WALLET_ADDRESS, value: addressCaip10);
+    emit(state.copyWith(accounts: [toCAPI10(addressHexEip155)]));
+    storage.write(key: walletAddress, value: addressHexEip155);
   }
 
   void onListenEvents() {
     platformChannel.setMethodCallHandler((call) async {
       if (call.method == 'sessionProposal') {
         if (call.arguments == null) {
-          emit(state.copyWith(message: 'No data received', methodCallWallet: MethodCallWallet.sessionProposal));
+          emit(state.copyWith(
+            message: 'No data received',
+            methodCallWallet: MethodCallWallet.sessionProposal,
+          ));
           return;
         }
         if (kDebugMode) {
           print("flutter do: sessionProposal");
         }
         emit(state.copyWith(
-            message: 'Session Proposal', methodCallWallet: MethodCallWallet.sessionProposal, methods: call.arguments));
+          message: 'Session Proposal',
+          methodCallWallet: MethodCallWallet.sessionProposal,
+          methods: call.arguments,
+        ));
       }
       if (call.method == 'sessionRequest') {
         if (kDebugMode) {
           print("flutter do: sessionRequest");
         }
         emit(state.copyWith(
-            message: 'Requested', methodCallWallet: MethodCallWallet.sessionRequest, methods: call.arguments));
+          message: 'Requested',
+          methodCallWallet: MethodCallWallet.sessionRequest,
+          methods: call.arguments,
+        ));
       }
       if (call.method == 'deletedSession') {
         if (kDebugMode) {
@@ -113,11 +133,16 @@ class HomePageCubit extends Cubit<HomePageState> {
   }) async {
     if (invokeMethodWallet == InvokeMethodWallet.disconnectSession) {
       emit(state.copyWith(
-          message: 'Disconnected',
-          methodCallWallet: MethodCallWallet.deletedSession,
-          invokeMethodWallet: InvokeMethodWallet.pairWallet,
-          methods: null,
-          sessionExpiry: null));
+        message: 'Disconnected',
+        methodCallWallet: MethodCallWallet.deletedSession,
+        methods: null,
+        sessionExpiry: null,
+      ));
+    }
+    if (invokeMethodWallet == InvokeMethodWallet.respondRequest ||
+        invokeMethodWallet == InvokeMethodWallet.rejectRequest) {
+      // final Credentials credentials = EthPrivateKey.fromHex(state.accounts.first);
+      // Todo: sign req
     }
     try {
       await platformChannel.invokeMethod(invokeMethodWallet.name.toString(), value);
@@ -125,8 +150,7 @@ class HomePageCubit extends Cubit<HomePageState> {
       if (kDebugMode) {
         print('Catch invokeMethod ${invokeMethodWallet.name.toString()}, message: $e');
       }
-      emit(state.copyWith(
-          message: '${invokeMethodWallet.name.toString()} failed', invokeMethodWallet: InvokeMethodWallet.pairWallet));
+      emit(state.copyWith(message: '${invokeMethodWallet.name.toString()} failed'));
     }
   }
 }
