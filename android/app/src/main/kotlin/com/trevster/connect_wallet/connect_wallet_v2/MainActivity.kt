@@ -44,7 +44,7 @@ class MainActivity : FlutterActivity() {
             Log.i("Dev", "Sign Client Initialize Error ${error.throwable.message}")
         }
 
-        runOnUiThread {  }
+        runOnUiThread { }
         val walletDelegate = object : SignClient.WalletDelegate {
             override fun onSessionProposal(sessionProposal: Sign.Model.SessionProposal) {
                 // Triggered when wallet receives the session proposal sent by a Dapp
@@ -56,14 +56,15 @@ class MainActivity : FlutterActivity() {
                     channel.invokeMethod(
                         "sessionProposal",
                         sessionProposal.requiredNamespaces[sessionProposal.requiredNamespaces.keys.first()]?.methods
-                    ) }
+                    )
+                }
                 println("walDel sessionProposal method invoked $sessionProposal")
             }
 
             override fun onSessionRequest(sessionRequest: Sign.Model.SessionRequest) {
                 // Triggered when a Dapp sends SessionRequest to sign a transaction or a message
                 runOnUiThread {
-                    channel.invokeMethod("sessionRequest", sessionRequest)
+                    channel.invokeMethod("sessionRequest", sessionRequest.chainId)
                 }
             }
 
@@ -168,7 +169,29 @@ class MainActivity : FlutterActivity() {
                 SignClient.disconnect(disconnectParams) { error: Sign.Model.Error ->
                     result.error(
                         "408",
-                        "Sign Client Reject Session Failed ${error.throwable.message}",
+                        "Sign Client Disconnect Session Failed ${error.throwable.message}",
+                        null
+                    )
+                }
+            }
+
+            if (call.method == "responseRequest") {
+
+                val sessionTopic: String = sessionsModel.first().topic
+                val jsonRpcResponse: Sign.Model.JsonRpcResponse.JsonRpcResult =
+                    Sign.Model.JsonRpcResponse.JsonRpcResult(
+                        call.arguments as Long,
+                        "",
+                    )
+                val request = Sign.Params.Response(
+                    sessionTopic = sessionTopic,
+                    jsonRpcResponse = jsonRpcResponse
+                )
+
+                SignClient.respond(request) { error ->
+                    result.error(
+                        "408",
+                        "Sign Client Response Request Failed ${error.throwable.message}",
                         null
                     )
                 }
