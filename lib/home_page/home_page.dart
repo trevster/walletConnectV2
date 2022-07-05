@@ -79,16 +79,18 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
                 BlocConsumer<HomePageCubit, HomePageState>(
                   bloc: _homePageCubit,
+                  listenWhen: (previous , current) => previous.methodCallWallet != current.methodCallWallet,
                   listener: (context, state) {
                     if(state.methodCallWallet == MethodCallWallet.sessionProposal){
-                      sessionProposal(state.methods);
+                      sessionProposal(state.methods, state.accounts.isNotEmpty ? state.accounts : accounts);
                     }
-                    if(state.message != null){
+                    if(state.message.isNotEmpty){
                       showSnackBar(text: state.message);
                     }
                   },
                   builder: (context, state) {
                     if(state.methodCallWallet == MethodCallWallet.settleSessionResponse){
+                      final _accounts = state.accounts.isNotEmpty ? state.accounts : accounts;
                       return SizedBox(
                         child: Column(
                           children: [
@@ -104,7 +106,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             ),
                             ListTile(
                               title: const Text('Accounts'),
-                              subtitle: Text(accounts.toString()),
+                              subtitle: Text(_accounts.toString()),
                             ),
                             ListTile(
                               title: const Text('Methods'),
@@ -169,12 +171,12 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
 
-  void sessionProposal(dynamic value) {
+  void sessionProposal(dynamic value, List<String> accounts) {
 
     final List<Widget> checkBoxListTile = [];
     final Map<String, bool> accountsBool = {};
 
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < accounts.length; i++) {
       accountsBool.addEntries({accounts[i]: false}.entries);
       checkBoxListTile.add(
         StatefulBuilder(builder: (context, setState) {
@@ -195,6 +197,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (BuildContext context) {
         String? errorMessage;
         return StatefulBuilder(builder: (context, setState) {

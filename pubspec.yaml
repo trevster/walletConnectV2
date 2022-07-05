@@ -36,6 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.2
   equatable: ^2.0.3
   flutter_bloc: ^8.0.1
+  flutter_secure_storage: ^5.0.2
   mobile_scanner: ^2.0.0
   web3dart: ^2.3.5
 
