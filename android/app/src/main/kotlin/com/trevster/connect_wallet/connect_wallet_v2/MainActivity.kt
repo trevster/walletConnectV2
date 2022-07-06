@@ -7,6 +7,10 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import com.walletconnect.walletconnectv2.client.Sign
 import com.walletconnect.walletconnectv2.client.SignClient
+import java.net.URI
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
 
 
 class MainActivity : FlutterActivity() {
@@ -14,6 +18,7 @@ class MainActivity : FlutterActivity() {
     private lateinit var channel: MethodChannel
 
     private lateinit var proposal: Sign.Model.SessionProposal
+    private lateinit var request: Sign.Model.SessionRequest
     private lateinit var sessionsModel: List<Sign.Model.Session>
 
     private companion object {
@@ -52,20 +57,49 @@ class MainActivity : FlutterActivity() {
                 println("walDel sessionProposal $sessionProposal")
                 proposal = sessionProposal
                 println("walDel sessionProposal gonna invoke method: proposal $proposal")
+
+                val proposedSealed =
+                    sessionProposal.requiredNamespaces[sessionProposal.requiredNamespaces.keys.first()]
+                var proposalModelTemp = ProposalModel(null, null, null)
+                if (proposedSealed != null) {
+                    proposalModelTemp = ProposalModel(
+                        proposedSealed.chains,
+                        proposedSealed.methods,
+                        proposedSealed.events,
+                    )
+                }
+
+                val transform: (URI) -> String = {it.toString()}
+                val sessionProposalModelTemp = SessionProposalModel(
+                    sessionProposal.name,
+                    sessionProposal.description,
+                    sessionProposal.url,
+                    sessionProposal.icons.map(transform),
+                    sessionProposal.requiredNamespaces.keys.first(),
+                    proposalModelTemp,
+                    sessionProposal.proposerPublicKey,
+                    sessionProposal.relayProtocol,
+                    sessionProposal.relayData,
+                )
                 runOnUiThread {
                     channel.invokeMethod(
                         "sessionProposal",
-                        sessionProposal.requiredNamespaces[sessionProposal.requiredNamespaces.keys.first()]?.methods
+                        Json.encodeToString(sessionProposalModelTemp)
                     )
+
                 }
                 println("walDel sessionProposal method invoked $sessionProposal")
             }
 
             override fun onSessionRequest(sessionRequest: Sign.Model.SessionRequest) {
                 // Triggered when a Dapp sends SessionRequest to sign a transaction or a message
+                Log.i("Dev", "---- onSessionRequest ----")
+                println("walDel sessionRequest $sessionRequest")
+                request = sessionRequest
                 runOnUiThread {
-                    channel.invokeMethod("sessionRequest", sessionRequest.chainId)
+                    channel.invokeMethod("sessionRequest", sessionRequest)
                 }
+                println("walDel sessionRequest method invoked $sessionRequest")
             }
 
             override fun onSessionDelete(deletedSession: Sign.Model.DeletedSession) {
@@ -177,11 +211,11 @@ class MainActivity : FlutterActivity() {
 
             if (call.method == "responseRequest") {
 
-                val sessionTopic: String = sessionsModel.first().topic
+                val sessionTopic: String = request.topic
                 val jsonRpcResponse: Sign.Model.JsonRpcResponse.JsonRpcResult =
                     Sign.Model.JsonRpcResponse.JsonRpcResult(
-                        call.arguments as Long,
-                        "",
+                        request.request.id,
+                        call.arguments as String,
                     )
                 val request = Sign.Params.Response(
                     sessionTopic = sessionTopic,
@@ -200,4 +234,23 @@ class MainActivity : FlutterActivity() {
     }
 }
 
+@Serializable
+data class SessionProposalModel(
+    val name: String,
+    val description: String,
+    val url: String,
+    val icons: List<String>,
+    val requiredNamespaces: String,
+    val proposal: ProposalModel,
+    val proposerPublicKey: String,
+    val relayProtocol: String,
+    val relayData: String?,
+)
+
+@Serializable
+data class ProposalModel(
+    val chains: List<String>?,
+    val methods: List<String>?,
+    val events: List<String>?,
+)
 

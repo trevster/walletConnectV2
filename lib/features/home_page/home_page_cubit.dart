@@ -1,10 +1,14 @@
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:bloc/bloc.dart';
+import 'package:connect_wallet_v2/models/models.dart';
+import 'package:connect_wallet_v2/utils/helper_functions.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:web3dart/crypto.dart';
 import 'package:web3dart/web3dart.dart';
 
 part 'home_page_state.dart';
@@ -33,7 +37,7 @@ class HomePageCubit extends Cubit<HomePageState> {
   static const platformChannel = MethodChannel('WalletConnectMethodChannel');
 
   String toCAPI10(String addressHex) {
-    if(!addressHex.startsWith('eip')) return 'eip155:42:$addressHex';
+    if (!addressHex.startsWith('eip')) return 'eip155:42:$addressHex';
     return addressHex;
   }
 
@@ -67,9 +71,18 @@ class HomePageCubit extends Cubit<HomePageState> {
         if (kDebugMode) {
           print("flutter do: sessionProposal");
         }
+        SessionProposal? sessionProposal;
+        try {
+          sessionProposal = SessionProposal.fromJson(jsonDecode(call.arguments));
+        } catch (e) {
+          if (kDebugMode) {
+            print("flutter failed: convert from args to session request");
+          }
+        }
         emit(state.copyWith(
           message: 'Session Proposal',
           methodCallWallet: MethodCallWallet.sessionProposal,
+          sessionProposal: sessionProposal,
           methods: call.arguments,
         ));
       }
@@ -77,10 +90,18 @@ class HomePageCubit extends Cubit<HomePageState> {
         if (kDebugMode) {
           print("flutter do: sessionRequest");
         }
+        SessionRequest? sessionRequest;
+        try {
+          sessionRequest = SessionRequest.fromJson(decodeResponseFromUint8List(call.arguments));
+        } catch (e) {
+          if (kDebugMode) {
+            print("flutter failed: convert from args to session request");
+          }
+        }
         emit(state.copyWith(
           message: 'Requested',
           methodCallWallet: MethodCallWallet.sessionRequest,
-          methods: call.arguments,
+          sessionRequest: sessionRequest,
         ));
       }
       if (call.method == 'deletedSession') {
@@ -131,6 +152,15 @@ class HomePageCubit extends Cubit<HomePageState> {
     InvokeMethodWallet invokeMethodWallet, {
     dynamic value,
   }) async {
+    if (invokeMethodWallet == InvokeMethodWallet.rejectSession) {
+      emit(state.copyWith(
+        message: 'Session Rejected',
+        methodCallWallet: MethodCallWallet.deletedSession,
+      ));
+    }
+    if (invokeMethodWallet == InvokeMethodWallet.approveSession) {
+      value = state.accounts;
+    }
     if (invokeMethodWallet == InvokeMethodWallet.disconnectSession) {
       emit(state.copyWith(
         message: 'Disconnected',
@@ -141,8 +171,12 @@ class HomePageCubit extends Cubit<HomePageState> {
     }
     if (invokeMethodWallet == InvokeMethodWallet.respondRequest ||
         invokeMethodWallet == InvokeMethodWallet.rejectRequest) {
-      // final Credentials credentials = EthPrivateKey.fromHex(state.accounts.first);
-      // Todo: sign req
+      final Credentials credentials = EthPrivateKey.fromHex(state.accounts.first);
+      final results = await credentials.signPersonalMessage(
+        keccakUtf8(state.sessionRequest!.request!.params!),
+        chainId: int.tryParse(state.sessionRequest!.chainId!),
+      );
+      value = results;
     }
     try {
       await platformChannel.invokeMethod(invokeMethodWallet.name.toString(), value);

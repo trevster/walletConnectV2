@@ -1,22 +1,23 @@
-import 'package:connect_wallet_v2/home_page/home_page.dart';
+
+import 'package:connect_wallet_v2/features/home_page/home_page.dart';
 import 'package:flutter/material.dart';
 
 
 void main() {
-  runApp(const MyApp());
+  runApp(const WalletApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+class WalletApp extends StatelessWidget {
+  const WalletApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Wallet App',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const MyHomePage(title: 'ConnectWallet'),
+      home: MyHomePage(title: 'Wallet App'),
     );
   }
 }

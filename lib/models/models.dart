@@ -1,3 +1,6 @@
+import 'dart:core';
+import 'dart:ffi';
+
 class AppMetaData {
   final String? name;
   final String? description;
@@ -8,9 +11,9 @@ class AppMetaData {
 
   static AppMetaData fromJson(dynamic json) {
     return AppMetaData(
-        name: json['name'] as String,
-        description: json['description'] as String,
-        url: json['url'] as String,
+        name: json['name'],
+        description: json['description'],
+        url: json['url'],
         icons: List<String>.from(json['icons']));
   }
 }
@@ -23,7 +26,7 @@ class SettledPairing {
 
   static SettledPairing fromJson(dynamic json) {
     return SettledPairing(
-      topic: json['topic'] as String,
+      topic: json['topic'],
       metaData: AppMetaData.fromJson(json['metaData']),
     );
   }
@@ -34,7 +37,8 @@ class SessionProposal {
   final String? description;
   final String? url;
   final List<String>? icons;
-  final Map<String, Proposal>? requiredNamespaces;
+  final String? requiredNamespaces;
+  final Proposal? proposal;
   final String? proposerPublicKey;
   final String? relayData;
   final String? relayProtocol;
@@ -45,6 +49,7 @@ class SessionProposal {
     this.url,
     this.icons,
     this.requiredNamespaces,
+    this.proposal,
     this.proposerPublicKey,
     this.relayData,
     this.relayProtocol,
@@ -52,14 +57,15 @@ class SessionProposal {
 
   static SessionProposal fromJson(dynamic json) {
     return SessionProposal(
-      name: json['name'] as String,
-      description: json['description'] as String,
-      url: json['url'] as String,
+      name: json['name'],
+      description: json['description'],
+      url: json['url'],
       icons: List<String>.from(json['icons']),
-      requiredNamespaces: {json['requiredNamespaces'], Proposal.fromJson(json['requiredNamespaces']['proposal'])} as Map<String, Proposal>,
-      proposerPublicKey: json['proposerPublicKey'] as String,
-      relayData: json['relayData'] as String,
-      relayProtocol: json['relayProtocol'] as String,
+      requiredNamespaces: json['requiredNamespaces'],
+      proposal: Proposal.fromJson(json['proposal']),
+      proposerPublicKey: json['proposerPublicKey'],
+      relayData: json['relayData'],
+      relayProtocol: json['relayProtocol'],
     );
   }
 }
@@ -73,9 +79,9 @@ class Proposal {
 
   static Proposal fromJson(dynamic json) {
     return Proposal(
-      chains: json['chains'],
-      methods: json['methods'],
-      events: json['events'],
+      chains: List<String>.from(json['chains']),
+      methods: List<String>.from(json['methods']),
+      events: List<String>.from(json['events']),
     );
   }
 }
@@ -86,12 +92,11 @@ class SettledSession {
   final AppMetaData? peerAppMetaData;
   final Permissions? permissions;
 
-  SettledSession(
-      {this.topic, this.accounts, this.peerAppMetaData, this.permissions});
+  SettledSession({this.topic, this.accounts, this.peerAppMetaData, this.permissions});
 
   static SettledSession fromJson(dynamic json) {
     return SettledSession(
-        topic: json['topic'] as String,
+        topic: json['topic'],
         accounts: List<String>.from(json['accounts']),
         peerAppMetaData: AppMetaData.fromJson(json['peerAppMetaData']),
         permissions: Permissions.fromJson(json['permissions']));
@@ -125,8 +130,51 @@ class RejectedSession {
 
   static RejectedSession fromJson(dynamic json) {
     return RejectedSession(
-      topic: json['topic'] as String,
-      reason: json['reason'] as String,
+      topic: json['topic'],
+      reason: json['reason'],
+    );
+  }
+}
+
+class SessionRequest {
+  final String? topic;
+  final String? chainId;
+  final AppMetaData? peerMetaData;
+  final JSONRPCRequest? request;
+
+  SessionRequest({
+    this.topic,
+    this.chainId,
+    this.peerMetaData,
+    this.request,
+  });
+
+  static SessionRequest fromJson(dynamic json) {
+    return SessionRequest(
+      topic: json['topic'],
+      chainId: json['chainId'],
+      peerMetaData: AppMetaData.fromJson(json['peerMetaData']),
+      request: JSONRPCRequest.fromJson(json['request']),
+    );
+  }
+}
+
+class JSONRPCRequest {
+  final Long? id;
+  final String? method;
+  final String? params;
+
+  JSONRPCRequest({
+    this.id,
+    this.method,
+    this.params,
+  });
+
+  static JSONRPCRequest fromJson(dynamic json) {
+    return JSONRPCRequest(
+      id: json['id'],
+      method: json['method'],
+      params: json['params'],
     );
   }
 }
